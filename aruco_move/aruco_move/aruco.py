@@ -19,15 +19,13 @@ class ArucoDetector(Node):
         self.aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_6X6_250)
         self.aruco_params = aruco.DetectorParameters_create()
 
-        # Publisher pour commander le robot
         qos = QoSProfile(depth=10)
         self.pub = self.create_publisher(Twist, 'key_vel', qos)
 
-        # Matrice de calibration de la caméra (à ajuster selon ton setup)
         self.camera_matrix = np.array([[800, 0, 320], 
                                        [0, 800, 240], 
                                        [0, 0, 1]], dtype=float)
-        self.dist_coeffs = np.zeros((4, 1))  # Si pas de distorsion
+        self.dist_coeffs = np.zeros((4, 1))
         
         self.navigator = BasicNavigator()
 
@@ -50,7 +48,7 @@ class ArucoDetector(Node):
             corners, ids, rejected = aruco.detectMarkers(gray, self.aruco_dict, parameters=self.aruco_params)
 
             if ids is not None:
-                self.aruco_detected = True  # Un marqueur est détecté, arrêter la rotation
+                self.aruco_detected = True
                 aruco.drawDetectedMarkers(cv_image, corners, ids)
 
                 rvecs, tvecs, _ = aruco.estimatePoseSingleMarkers(corners, 1, self.camera_matrix, self.dist_coeffs)
@@ -62,9 +60,6 @@ class ArucoDetector(Node):
                     rx, ry, rz = self.get_euler_angles(rvecs[i])
 
                     if not self.facing_aruco:
-                    #     self.reloc(x, y, z, rx, ry, rz)
-                    #     self.stop = True
-                    # elif self.facing_aruco :
                         self.goto_aruco(x, y, z, rx, ry, rz)
                         self.facing_aruco = True
                         self.search_for_aruco()
@@ -81,21 +76,19 @@ class ArucoDetector(Node):
     def get_euler_angles(self, rvec):
         R, _ = cv2.Rodrigues(rvec)
 
-        # Extraire les angles d’Euler en suivant la convention ZYX (yaw, pitch, roll)
         sy = np.sqrt(R[0, 0]**2 + R[1, 0]**2)
 
         singular = sy < 1e-6
 
         if not singular:
-            rx = np.arctan2(R[2, 1], R[2, 2])  # Rotation autour de X (roll)
-            ry = np.arctan2(-R[2, 0], sy)       # Rotation autour de Y (pitch)
-            rz = np.arctan2(R[1, 0], R[0, 0])  # Rotation autour de Z (yaw)
+            rx = np.arctan2(R[2, 1], R[2, 2])
+            ry = np.arctan2(-R[2, 0], sy)
+            rz = np.arctan2(R[1, 0], R[0, 0])  
         else:
             rx = np.arctan2(-R[1, 2], R[1, 1])
             ry = np.arctan2(-R[2, 0], sy)
             rz = 0
 
-        # Convertir en degrés
         rx, ry, rz = np.degrees([rx, ry, rz])
 
         return rx, ry, rz
@@ -140,8 +133,6 @@ class ArucoDetector(Node):
             goal_pose.pose.position.y = init_pose.position.y - z + 5.5
             goal_pose.pose.orientation = init_pose.orientation
             self.navigator.goToPose(goal_pose)
-        print(rx)
-        # print(f"[{init_pose.position.x:.2f}, {init_pose.position.y:.2f}, {init_pose.orientation.w:.2f}]")
 
 
 
@@ -152,7 +143,7 @@ class ArucoDetector(Node):
         """
         twist = Twist()
         twist.linear.x = 0.0
-        twist.angular.z = 0.3  # Tourne lentement sur lui-même
+        twist.angular.z = 0.3 
 
         self.pub.publish(twist)
 
